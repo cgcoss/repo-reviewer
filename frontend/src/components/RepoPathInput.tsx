@@ -24,7 +24,7 @@ export default function RepoPathInput({ path, onPathChange, onBrowse, onOpen, er
                     onChange={(e) => onPathChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Enter repository path..."
-                    className="flex-1 bg-darcula-surface border border-darcula-border rounded px-2 py-1 text-sm text-darcula-text placeholder-darcula-muted focus:outline-none focus:border-darcula-info"
+                    className="flex-1 min-w-0 bg-darcula-surface border border-darcula-border rounded px-2 py-1 text-sm text-darcula-text placeholder-darcula-muted focus:outline-none focus:border-darcula-info"
                 />
                 <button
                     onClick={onBrowse}
