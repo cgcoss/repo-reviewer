@@ -29,7 +29,7 @@ func ParseStatus(repo string) ([]ChangedFile, error) {
 }
 
 func parsePorcelainV1Z(data string) []ChangedFile {
-	var files []ChangedFile
+	files := []ChangedFile{}
 	entries := strings.Split(data, "\x00")
 
 	for i := 0; i < len(entries); i++ {

@@ -58,7 +58,7 @@ export default function App() {
             const summary = await wails.openRepository(repoPath.trim());
             setRepo(summary);
             const status = await wails.getStatus(summary.path);
-            setFiles(status);
+            setFiles(status ?? []);
             setSelectedFile(null);
             setDiff(null);
             setLastRefresh(new Date().toLocaleTimeString());
@@ -79,7 +79,7 @@ export default function App() {
                     const summary = await wails.openRepository(dir);
                     setRepo(summary);
                     const status = await wails.getStatus(summary.path);
-                    setFiles(status);
+                    setFiles(status ?? []);
                     setSelectedFile(null);
                     setDiff(null);
                     setLastRefresh(new Date().toLocaleTimeString());
