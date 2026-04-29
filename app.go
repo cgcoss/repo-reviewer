@@ -5,11 +5,13 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"repo-reviewer/internal/git"
+	"repo-reviewer/internal/watcher"
 )
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx     context.Context
+	watcher *watcher.Watcher
 }
 
 // NewApp creates a new App application struct
@@ -21,6 +23,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.watcher = watcher.New(ctx)
 }
 
 // OpenRepository validates the given path and returns a summary.
@@ -32,6 +35,13 @@ func (a *App) OpenRepository(path string) (RepoSummary, error) {
 	top, err := git.ValidateRepo(path)
 	if err != nil {
 		return RepoSummary{}, err
+	}
+
+	if a.watcher != nil {
+		_ = a.watcher.Stop()
+	}
+	if a.watcher != nil {
+		_ = a.watcher.Start(top)
 	}
 
 	branch, err := git.GetCurrentBranch(top)
@@ -65,6 +75,13 @@ func (a *App) SelectDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Select Git Repository",
 	})
+}
+
+// Shutdown stops the filesystem watcher and performs cleanup.
+func (a *App) Shutdown(ctx context.Context) {
+	if a.watcher != nil {
+		_ = a.watcher.Stop()
+	}
 }
 
 // RepoSummary holds basic repository information.

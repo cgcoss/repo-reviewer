@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useWails } from "./hooks/useWails";
+import { useGitWatcher } from "./hooks/useGitWatcher";
 import type { ChangedFile, RepoSummary } from "./types";
 import RepoPathInput from "./components/RepoPathInput";
 import ChangeTree from "./components/ChangeTree";
@@ -47,6 +48,8 @@ export default function App() {
             setError(e?.toString?.() || "Refresh failed");
         }
     }, [repo, selectedFile, wails]);
+
+    useGitWatcher(refresh, repo !== null);
 
     const openRepo = useCallback(async () => {
         setError(null);
