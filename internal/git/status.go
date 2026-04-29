@@ -20,7 +20,7 @@ type ChangedFile struct {
 
 // ParseStatus runs git status --porcelain=v1 -z and returns parsed ChangedFile entries.
 func ParseStatus(repo string) ([]ChangedFile, error) {
-	cmd := exec.Command("git", "-C", repo, "status", "--porcelain=v1", "-z")
+	cmd := exec.Command("git", "-C", repo, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get git status: %w", err)

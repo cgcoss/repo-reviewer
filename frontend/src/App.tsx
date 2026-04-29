@@ -109,7 +109,7 @@ export default function App() {
             } catch (e: any) {
                 if (file.untracked) {
                     setDiff(null);
-                    setError("Untracked file: no diff available yet");
+                    setError(e?.toString?.() || "Untracked file: no diff available yet");
                 } else {
                     setDiff(null);
                     setError(e?.toString?.() || "Failed to get diff");
