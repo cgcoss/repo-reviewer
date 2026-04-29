@@ -29,7 +29,7 @@ export default function App() {
             setFiles(status);
 
             if (selectedFile) {
-                const stillExists = status.find((f) => f.path === selectedFile.path);
+                const stillExists = status.find((f) => f.id === selectedFile.id);
                 if (stillExists) {
                     const d = await wails.getDiff(repo.path, stillExists);
                     setDiff(d);
@@ -105,9 +105,10 @@ export default function App() {
                 setDiff(d);
             } catch (e: any) {
                 if (file.untracked) {
-                    setDiff("Untracked file: no diff available yet");
+                    setDiff(null);
+                    setError("Untracked file: no diff available yet");
                 } else {
-                    setDiff("");
+                    setDiff(null);
                     setError(e?.toString?.() || "Failed to get diff");
                 }
             }
@@ -125,7 +126,7 @@ export default function App() {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                 if (files.length === 0) return;
                 const currentIndex = selectedFile
-                    ? files.findIndex((f) => f.path === selectedFile.path)
+                    ? files.findIndex((f) => f.id === selectedFile.id)
                     : -1;
                 let nextIndex = currentIndex;
                 if (e.key === "ArrowDown") {
@@ -157,7 +158,7 @@ export default function App() {
                     />
                     <ChangeTree
                         files={files}
-                        selectedPath={selectedFile?.path ?? null}
+                        selectedPath={selectedFile?.id ?? null}
                         onSelect={selectFile}
                     />
                 </div>

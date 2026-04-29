@@ -26,9 +26,9 @@ export default function ChangeTree({ files, selectedPath, onSelect }: ChangeTree
                 <div>
                     {items.map((file) => (
                         <FileRow
-                            key={file.path}
+                            key={file.id}
                             file={file}
-                            selected={selectedPath === file.path}
+                            selected={selectedPath === file.id}
                             onClick={() => onSelect(file)}
                         />
                     ))}

@@ -1,6 +1,7 @@
 export namespace git {
 	
 	export class ChangedFile {
+	    id: string;
 	    path: string;
 	    oldPath?: string;
 	    fileName: string;
@@ -14,6 +15,7 @@ export namespace git {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
 	        this.path = source["path"];
 	        this.oldPath = source["oldPath"];
 	        this.fileName = source["fileName"];

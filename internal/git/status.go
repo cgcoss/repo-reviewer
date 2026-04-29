@@ -9,6 +9,7 @@ import (
 
 // ChangedFile represents a single changed file in the working tree.
 type ChangedFile struct {
+	ID        string `json:"id"`
 	Path      string `json:"path"`
 	OldPath   string `json:"oldPath,omitempty"`
 	FileName  string `json:"fileName"`
@@ -59,28 +60,45 @@ func parsePorcelainV1Z(data string) []ChangedFile {
 		}
 
 		fileName := filepath.Base(path)
-		staged := x != ' ' && x != '?'
 		untracked := x == '?' && y == '?'
 
-		status := ""
 		if untracked {
-			status = "??"
-		} else {
-			if staged {
-				status = string(x)
-			} else if y != ' ' {
-				status = string(y)
-			}
+			files = append(files, ChangedFile{
+				ID:        path + "::untracked",
+				Path:      path,
+				FileName:  fileName,
+				Status:    "??",
+				Staged:    false,
+				Untracked: true,
+			})
+			continue
 		}
 
-		files = append(files, ChangedFile{
-			Path:      path,
-			OldPath:   oldPath,
-			FileName:  fileName,
-			Status:    status,
-			Staged:    staged,
-			Untracked: untracked,
-		})
+		xStaged := x != ' ' && x != '?'
+		yUnstaged := y != ' ' && y != '?'
+
+		if xStaged {
+			files = append(files, ChangedFile{
+				ID:       path + "::staged",
+				Path:     path,
+				OldPath:  oldPath,
+				FileName: fileName,
+				Status:   string(x),
+				Staged:   true,
+			})
+		}
+
+		if yUnstaged {
+			files = append(files, ChangedFile{
+				ID:        path + "::unstaged",
+				Path:      path,
+				OldPath:   oldPath,
+				FileName:  fileName,
+				Status:    string(y),
+				Staged:    false,
+				Untracked: false,
+			})
+		}
 	}
 
 	return files

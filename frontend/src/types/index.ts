@@ -1,4 +1,5 @@
 export interface ChangedFile {
+    id: string;
     path: string;
     oldPath?: string;
     fileName: string;
