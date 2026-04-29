@@ -1,46 +1,55 @@
-import type { ChangedFile } from "../types";
+import type { SideBySideRow } from "../utils/diffParser";
 
 interface DiffLineProps {
-    line: string;
+    row: SideBySideRow;
 }
 
-export default function DiffLine({ line }: DiffLineProps) {
-    if (line.startsWith("+")) {
+const numClass = "w-10 text-right pr-2 pl-1 text-darcula-muted select-none whitespace-nowrap";
+const contentClass = "whitespace-pre px-1";
+
+export default function DiffLine({ row }: DiffLineProps) {
+    if (row.type === "header") {
         return (
-            <div className="flex bg-darcula-add text-darcula-addText font-mono text-xs leading-5">
-                <span className="w-8 text-right pr-2 text-darcula-muted select-none shrink-0">+</span>
-                <span className="whitespace-pre">{line.slice(1)}</span>
-            </div>
+            <tr className="bg-darcula-bg">
+                <td colSpan={4} className={`bg-darcula-bg text-darcula-muted ${contentClass}`}>
+                    {row.header}
+                </td>
+            </tr>
         );
     }
-    if (line.startsWith("-")) {
+
+    if (row.type === "hunk") {
         return (
-            <div className="flex bg-darcula-del text-darcula-delText font-mono text-xs leading-5">
-                <span className="w-8 text-right pr-2 text-darcula-muted select-none shrink-0">-</span>
-                <span className="whitespace-pre">{line.slice(1)}</span>
-            </div>
+            <tr className="bg-darcula-highlight">
+                <td colSpan={4} className={`bg-darcula-highlight text-darcula-info ${contentClass}`}>
+                    {row.header}
+                </td>
+            </tr>
         );
     }
-    if (line.startsWith("@@")) {
-        return (
-            <div className="flex bg-darcula-highlight text-darcula-info font-mono text-xs leading-5">
-                <span className="w-8 text-right pr-2 text-darcula-muted select-none shrink-0"></span>
-                <span className="whitespace-pre">{line}</span>
-            </div>
-        );
-    }
-    if (line.startsWith("diff ") || line.startsWith("index ") || line.startsWith("--- ") || line.startsWith("+++ ")) {
-        return (
-            <div className="flex text-darcula-muted font-mono text-xs leading-5">
-                <span className="w-8 text-right pr-2 text-darcula-muted select-none shrink-0"></span>
-                <span className="whitespace-pre">{line}</span>
-            </div>
-        );
-    }
+
+    const isMixed = row.type === "mixed";
+    const isRemove = row.type === "remove";
+    const isAdd = row.type === "add";
+
+    const leftNumBg = isRemove || isMixed ? "bg-darcula-del" : "bg-darcula-bg";
+    const leftTextBg = isRemove || isMixed ? "bg-darcula-del" : "bg-darcula-bg";
+    const leftTextColor = isRemove || isMixed ? "text-darcula-delText" : "text-darcula-text";
+
+    const rightNumBg = isAdd || isMixed ? "bg-darcula-add" : "bg-darcula-bg";
+    const rightTextBg = isAdd || isMixed ? "bg-darcula-add" : "bg-darcula-bg";
+    const rightTextColor = isAdd || isMixed ? "text-darcula-addText" : "text-darcula-text";
+
     return (
-        <div className="flex text-darcula-text font-mono text-xs leading-5">
-            <span className="w-8 text-right pr-2 text-darcula-muted select-none shrink-0"></span>
-            <span className="whitespace-pre">{line}</span>
-        </div>
+        <tr>
+            <td className={`${numClass} ${leftNumBg}`}>{row.leftLineNumber ?? ""}</td>
+            <td className={`${contentClass} ${leftTextBg} ${leftTextColor} border-r border-darcula-border`}>
+                {row.leftContent ?? ""}
+            </td>
+            <td className={`${numClass} ${rightNumBg}`}>{row.rightLineNumber ?? ""}</td>
+            <td className={`${contentClass} ${rightTextBg} ${rightTextColor}`}>
+                {row.rightContent ?? ""}
+            </td>
+        </tr>
     );
 }

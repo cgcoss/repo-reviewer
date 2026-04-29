@@ -1,4 +1,5 @@
 import DiffLine from "./DiffLine";
+import { parseUnifiedDiff } from "../utils/diffParser";
 
 interface DiffViewerProps {
     diff: string | null;
@@ -14,7 +15,7 @@ export default function DiffViewer({ diff, fileName }: DiffViewerProps) {
         );
     }
 
-    const lines = diff.split("\n");
+    const rows = parseUnifiedDiff(diff);
 
     return (
         <div className="flex-1 flex flex-col min-w-0 bg-darcula-bg">
@@ -22,9 +23,13 @@ export default function DiffViewer({ diff, fileName }: DiffViewerProps) {
                 {fileName}
             </div>
             <div className="flex-1 overflow-auto p-2">
-                {lines.map((line, i) => (
-                    <DiffLine key={i} line={line} />
-                ))}
+                <table className="w-full border-collapse text-xs font-mono leading-5">
+                    <tbody>
+                        {rows.map((row, i) => (
+                            <DiffLine key={i} row={row} />
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
