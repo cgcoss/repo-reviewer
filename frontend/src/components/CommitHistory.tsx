@@ -42,7 +42,7 @@ export default function CommitHistory({
     }
 
     return (
-        <div className="overflow-auto flex-1 relative">
+        <div className="overflow-auto flex-1 relative min-h-0">
             <div className="flex">
                 {/* Graph column */}
                 <div className="shrink-0 sticky left-0 bg-darcula-bg z-10">

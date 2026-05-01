@@ -301,7 +301,7 @@ export default function App() {
                 </div>
 
                 {/* Main diff viewer */}
-                <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                     <DiffViewer diff={diff} fileName={diffTitle} />
                 </div>
             </div>
@@ -332,7 +332,7 @@ export default function App() {
                         </button>
                     </div>
                     {/* Panel content */}
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden flex flex-col">
                         {bottomPanelTab === "log" && (
                             <CommitHistory
                                 commits={logCommits}

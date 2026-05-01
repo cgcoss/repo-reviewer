@@ -46,7 +46,7 @@ export default function ChangeTree({ files, selectedPath, onSelect }: ChangeTree
     }
 
     return (
-        <div className="overflow-auto flex-1">
+        <div className="overflow-auto flex-1 min-h-0">
             {renderGroup("Staged Changes", staged, staged.length)}
             {renderGroup("Changes", changes, changes.length)}
             {renderGroup("Untracked Files", untracked, untracked.length)}
