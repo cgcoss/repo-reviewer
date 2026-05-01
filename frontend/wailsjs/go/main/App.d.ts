@@ -3,6 +3,10 @@
 import {git} from '../models';
 import {main} from '../models';
 
+export function GetCommitDiff(arg1:string,arg2:string):Promise<string>;
+
+export function GetCommitHistory(arg1:string,arg2:number,arg3:number):Promise<git.HistoryResult>;
+
 export function GetCurrentBranch(arg1:string):Promise<string>;
 
 export function GetDiff(arg1:string,arg2:git.ChangedFile):Promise<string>;

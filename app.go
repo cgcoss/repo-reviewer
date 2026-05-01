@@ -70,6 +70,16 @@ func (a *App) GetCurrentBranch(path string) (string, error) {
 	return git.GetCurrentBranch(path)
 }
 
+// GetCommitHistory returns the commit history for the repository.
+func (a *App) GetCommitHistory(path string, maxCount int, skip int) (git.HistoryResult, error) {
+	return git.GetCommitHistory(path, maxCount, skip)
+}
+
+// GetCommitDiff returns the diff for a specific commit.
+func (a *App) GetCommitDiff(path string, hash string) (string, error) {
+	return git.GetCommitDiff(path, hash)
+}
+
 // SelectDirectory opens a directory dialog and returns the selected path.
 func (a *App) SelectDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
