@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWails } from "./hooks/useWails";
 import { useGitWatcher } from "./hooks/useGitWatcher";
 import type { ChangedFile, RepoSummary, Commit, Ref } from "./types";
@@ -19,7 +19,13 @@ export default function App() {
     const [error, setError] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState<string | null>(null);
 
-    const [activeView, setActiveView] = useState<"changes" | "log">("changes");
+    const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
+    const [bottomPanelHeight, setBottomPanelHeight] = useState(280);
+    const [bottomPanelTab, setBottomPanelTab] = useState<"log">("log");
+    const isResizingRef = useRef(false);
+    const startYRef = useRef(0);
+    const startHeightRef = useRef(0);
+
     const [logCommits, setLogCommits] = useState<Commit[]>([]);
     const [logRefs, setLogRefs] = useState<Ref[]>([]);
     const [logSkip, setLogSkip] = useState(0);
@@ -70,34 +76,33 @@ export default function App() {
         [repo, wails]
     );
 
-    const handleViewChange = useCallback(
-        (view: "changes" | "log") => {
-            setActiveView(view);
-            if (view === "log" && logCommits.length === 0) loadHistory(0);
-        },
-        [logCommits.length, loadHistory]
-    );
+    // Load log when bottom panel opens
+    useEffect(() => {
+        if (bottomPanelOpen && logCommits.length === 0) {
+            loadHistory(0);
+        }
+    }, [bottomPanelOpen, logCommits.length, loadHistory]);
 
     const refresh = useCallback(async () => {
         if (!repo) return;
         setError(null);
         try {
-            if (activeView === "changes") {
-                const status = await wails.getStatus(repo.path);
-                setFiles(status);
+            const status = await wails.getStatus(repo.path);
+            setFiles(status);
 
-                if (selectedFile) {
-                    const stillExists = status.find((f) => f.id === selectedFile.id);
-                    if (stillExists) {
-                        const d = await wails.getDiff(repo.path, stillExists);
-                        setDiff(d);
-                        setSelectedFile(stillExists);
-                    } else {
-                        setSelectedFile(null);
-                        setDiff(null);
-                    }
+            if (selectedFile) {
+                const stillExists = status.find((f) => f.id === selectedFile.id);
+                if (stillExists) {
+                    const d = await wails.getDiff(repo.path, stillExists);
+                    setDiff(d);
+                    setSelectedFile(stillExists);
+                } else {
+                    setSelectedFile(null);
+                    setDiff(null);
                 }
-            } else {
+            }
+
+            if (bottomPanelOpen) {
                 loadHistory(0);
             }
 
@@ -107,7 +112,7 @@ export default function App() {
         } catch (e: any) {
             setError(e?.toString?.() || "Refresh failed");
         }
-    }, [repo, activeView, selectedFile, wails, loadHistory]);
+    }, [repo, selectedFile, wails, loadHistory, bottomPanelOpen]);
 
     useGitWatcher(refresh, repo !== null);
 
@@ -125,7 +130,7 @@ export default function App() {
             setSelectedFile(null);
             setDiff(null);
             setSelectedCommitHash(null);
-            setActiveView("changes");
+            setBottomPanelOpen(false);
             setLogCommits([]);
             setLogRefs([]);
             setLogSkip(0);
@@ -151,7 +156,7 @@ export default function App() {
                     setSelectedFile(null);
                     setDiff(null);
                     setSelectedCommitHash(null);
-                    setActiveView("changes");
+                    setBottomPanelOpen(false);
                     setLogCommits([]);
                     setLogRefs([]);
                     setLogSkip(0);
@@ -191,6 +196,31 @@ export default function App() {
         [repo, wails]
     );
 
+    // Resize handlers
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizingRef.current) return;
+            const delta = startYRef.current - e.clientY;
+            const newHeight = Math.max(120, Math.min(600, startHeightRef.current + delta));
+            setBottomPanelHeight(newHeight);
+        };
+        const handleMouseUp = () => {
+            isResizingRef.current = false;
+        };
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, []);
+
+    const startResize = useCallback((e: React.MouseEvent) => {
+        isResizingRef.current = true;
+        startYRef.current = e.clientY;
+        startHeightRef.current = bottomPanelHeight;
+    }, [bottomPanelHeight]);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -199,7 +229,7 @@ export default function App() {
                 refresh();
             }
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                if (activeView === "log" && logCommits.length > 0) {
+                if (bottomPanelOpen && logCommits.length > 0) {
                     const currentIndex = selectedCommitHash
                         ? logCommits.findIndex((c) => c.hash === selectedCommitHash)
                         : -1;
@@ -233,7 +263,7 @@ export default function App() {
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [files, refresh, selectFile, selectedFile, activeView, logCommits, selectedCommitHash, selectCommit]);
+    }, [files, refresh, selectFile, selectedFile, bottomPanelOpen, logCommits, selectedCommitHash, selectCommit]);
 
     const diffTitle = selectedFile?.fileName ?? (selectedCommitHash ? selectedCommitHash.slice(0, 7) : "");
 
@@ -249,45 +279,25 @@ export default function App() {
                         onOpen={openRepo}
                         error={error}
                     />
-                    <div className="flex border-b border-darcula-border">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-darcula-border">
+                        <span className="text-xs font-medium text-darcula-text">Changes</span>
                         <button
-                            onClick={() => handleViewChange("changes")}
-                            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                                activeView === "changes"
-                                    ? "text-darcula-text border-b-2 border-darcula-info"
-                                    : "text-darcula-muted hover:text-darcula-text"
+                            onClick={() => setBottomPanelOpen((prev) => !prev)}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                                bottomPanelOpen
+                                    ? "bg-darcula-info text-white"
+                                    : "bg-darcula-surface hover:bg-darcula-highlight text-darcula-text"
                             }`}
-                        >
-                            Changes
-                        </button>
-                        <button
-                            onClick={() => handleViewChange("log")}
-                            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                                activeView === "log"
-                                    ? "text-darcula-text border-b-2 border-darcula-info"
-                                    : "text-darcula-muted hover:text-darcula-text"
-                            }`}
+                            title="Toggle Log Panel"
                         >
                             Log
                         </button>
                     </div>
-                    {activeView === "changes" ? (
-                        <ChangeTree
-                            files={files}
-                            selectedPath={selectedFile?.id ?? null}
-                            onSelect={selectFile}
-                        />
-                    ) : (
-                        <CommitHistory
-                            commits={logCommits}
-                            refs={logRefs}
-                            selectedHash={selectedCommitHash}
-                            onSelectCommit={selectCommit}
-                            onLoadMore={loadMoreHistory}
-                            hasMore={logHasMore}
-                            isLoading={logLoading}
-                        />
-                    )}
+                    <ChangeTree
+                        files={files}
+                        selectedPath={selectedFile?.id ?? null}
+                        onSelect={selectFile}
+                    />
                 </div>
 
                 {/* Main diff viewer */}
@@ -295,6 +305,48 @@ export default function App() {
                     <DiffViewer diff={diff} fileName={diffTitle} />
                 </div>
             </div>
+
+            {/* Bottom panel */}
+            {bottomPanelOpen && (
+                <div
+                    className="shrink-0 border-t border-darcula-border flex flex-col bg-darcula-bg"
+                    style={{ height: bottomPanelHeight }}
+                >
+                    {/* Resize handle */}
+                    <div
+                        onMouseDown={startResize}
+                        className="h-1.5 cursor-ns-resize hover:bg-darcula-info bg-transparent shrink-0"
+                        title="Resize panel"
+                    />
+                    {/* Tab bar */}
+                    <div className="flex border-b border-darcula-border shrink-0">
+                        <button
+                            onClick={() => setBottomPanelTab("log")}
+                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                                bottomPanelTab === "log"
+                                    ? "text-darcula-text border-b-2 border-darcula-info"
+                                    : "text-darcula-muted hover:text-darcula-text"
+                            }`}
+                        >
+                            Log
+                        </button>
+                    </div>
+                    {/* Panel content */}
+                    <div className="flex-1 overflow-hidden">
+                        {bottomPanelTab === "log" && (
+                            <CommitHistory
+                                commits={logCommits}
+                                refs={logRefs}
+                                selectedHash={selectedCommitHash}
+                                onSelectCommit={selectCommit}
+                                onLoadMore={loadMoreHistory}
+                                hasMore={logHasMore}
+                                isLoading={logLoading}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
 
             <StatusBar
                 branch={repo?.branch ?? "No repository"}
