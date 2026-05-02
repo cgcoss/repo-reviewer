@@ -173,7 +173,7 @@ func parseForEachRef(data string, headRef string) []Ref {
 }
 
 func getTagCommitHash(repo string, refname string) (string, error) {
-	args := []string{refname + "^{commit}"}
+	args := []string{"rev-parse", refname + "^{commit}"}
 	if repo != "" {
 		args = []string{"-C", repo, "rev-parse", refname + "^{commit}"}
 	}

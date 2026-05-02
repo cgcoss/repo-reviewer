@@ -29,6 +29,17 @@ func ParseStatus(repo string) ([]ChangedFile, error) {
 	return parsePorcelainV1Z(string(out)), nil
 }
 
+// StatusFingerprint returns a deterministic string representing the current
+// working tree status. It changes whenever ParseStatus would return different data.
+func StatusFingerprint(repo string) (string, error) {
+	cmd := exec.Command("git", "-C", repo, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git status: %w", err)
+	}
+	return string(out), nil
+}
+
 func parsePorcelainV1Z(data string) []ChangedFile {
 	files := []ChangedFile{}
 	entries := strings.Split(data, "\x00")

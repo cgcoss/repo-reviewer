@@ -9,16 +9,22 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"repo-reviewer/internal/git"
 )
 
 // Watcher monitors a Git repository for filesystem changes and emits
 // a Wails runtime event when the repository status may have changed.
 type Watcher struct {
-	ctx      context.Context
-	watcher  *fsnotify.Watcher
-	mu       sync.Mutex
-	stopCh   chan struct{}
-	debounce time.Duration
+	ctx        context.Context
+	watcher    *fsnotify.Watcher
+	mu         sync.Mutex
+	stopCh     chan struct{}
+	debounce   time.Duration
+	repoPath   string
+	focused    bool
+	lastStatus string
+	unsubFocus func()
+	unsubBlur  func()
 }
 
 // New creates a new Watcher bound to the given Wails context.
@@ -27,6 +33,14 @@ func New(ctx context.Context) *Watcher {
 		ctx:      ctx,
 		debounce: 200 * time.Millisecond,
 	}
+}
+
+// SetFocused tells the watcher whether the application window is focused.
+// Polling for working-tree changes only happens while focused.
+func (w *Watcher) SetFocused(focused bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.focused = focused
 }
 
 // Start begins watching the given repository path.
@@ -48,6 +62,8 @@ func (w *Watcher) Start(repoPath string) error {
 		}
 	}
 	w.stopCh = make(chan struct{})
+	w.repoPath = repoPath
+	w.lastStatus = ""
 
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -55,26 +71,8 @@ func (w *Watcher) Start(repoPath string) error {
 	}
 	w.watcher = fsw
 
-	// Watch the working tree recursively, skipping .git.
-	err = filepath.WalkDir(repoPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // skip inaccessible paths
-		}
-		if d.IsDir() {
-			if filepath.Base(path) == ".git" {
-				return filepath.SkipDir
-			}
-			_ = fsw.Add(path)
-		}
-		return nil
-	})
-	if err != nil {
-		fsw.Close()
-		w.watcher = nil
-		return err
-	}
-
-	// Watch specific .git subpaths.
+	// Watch specific .git subpaths for instant detection of git operations
+	// (git add, checkout, pull, merge, etc.).
 	gitDir := filepath.Join(repoPath, ".git")
 	paths := []string{
 		filepath.Join(gitDir, "index"),
@@ -101,17 +99,35 @@ func (w *Watcher) Start(repoPath string) error {
 		}
 	}
 
+	// Listen to frontend focus events so we only poll while the window is active.
+	w.unsubFocus = runtime.EventsOn(w.ctx, "window:focused", func(...interface{}) {
+		w.SetFocused(true)
+	})
+	w.unsubBlur = runtime.EventsOn(w.ctx, "window:blurred", func(...interface{}) {
+		w.SetFocused(false)
+	})
+
 	go w.loop()
 
 	return nil
 }
 
 func (w *Watcher) loop() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
 	var timer *time.Timer
 	for {
 		select {
 		case <-w.stopCh:
 			return
+		case <-ticker.C:
+			w.mu.Lock()
+			focused := w.focused
+			w.mu.Unlock()
+			if focused {
+				w.emit()
+			}
 		case event, ok := <-w.watcher.Events:
 			if !ok {
 				return
@@ -126,7 +142,7 @@ func (w *Watcher) loop() {
 				if w.ctx.Err() != nil {
 					return
 				}
-				runtime.EventsEmit(w.ctx, "git:status-changed")
+				w.emit()
 			})
 		case _, ok := <-w.watcher.Errors:
 			if !ok {
@@ -134,6 +150,33 @@ func (w *Watcher) loop() {
 			}
 		}
 	}
+}
+
+// emit runs git status and emits git:status-changed only when the
+// porcelain output actually differs from the last known state.
+func (w *Watcher) emit() {
+	w.mu.Lock()
+	repoPath := w.repoPath
+	w.mu.Unlock()
+
+	if repoPath == "" {
+		return
+	}
+
+	fp, err := git.StatusFingerprint(repoPath)
+	if err != nil {
+		return
+	}
+
+	w.mu.Lock()
+	if fp == w.lastStatus {
+		w.mu.Unlock()
+		return
+	}
+	w.lastStatus = fp
+	w.mu.Unlock()
+
+	runtime.EventsEmit(w.ctx, "git:status-changed")
 }
 
 func (w *Watcher) shouldIgnore(event fsnotify.Event) bool {
@@ -148,6 +191,15 @@ func (w *Watcher) shouldIgnore(event fsnotify.Event) bool {
 func (w *Watcher) Stop() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	if w.unsubFocus != nil {
+		w.unsubFocus()
+		w.unsubFocus = nil
+	}
+	if w.unsubBlur != nil {
+		w.unsubBlur()
+		w.unsubBlur = nil
+	}
 
 	if w.stopCh != nil {
 		select {

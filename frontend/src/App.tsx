@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { EventsEmit } from "../wailsjs/runtime/runtime";
 import { useWails } from "./hooks/useWails";
 import { useGitWatcher } from "./hooks/useGitWatcher";
 import type { ChangedFile, RepoSummary, Commit, Ref } from "./types";
@@ -115,6 +116,21 @@ export default function App() {
     }, [repo, selectedFile, wails, loadHistory, bottomPanelOpen]);
 
     useGitWatcher(refresh, repo !== null);
+
+    // Notify backend of window focus state so it can pause/resume polling.
+    useEffect(() => {
+        const onFocus = () => EventsEmit("window:focused");
+        const onBlur = () => EventsEmit("window:blurred");
+        window.addEventListener("focus", onFocus);
+        window.addEventListener("blur", onBlur);
+        if (document.hasFocus()) {
+            EventsEmit("window:focused");
+        }
+        return () => {
+            window.removeEventListener("focus", onFocus);
+            window.removeEventListener("blur", onBlur);
+        };
+    }, []);
 
     const openRepo = useCallback(async () => {
         setError(null);

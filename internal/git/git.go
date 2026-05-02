@@ -33,9 +33,13 @@ func ValidateRepo(path string) (string, error) {
 	}
 
 	cmd := exec.Command("git", "-C", abs, "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("not a git repository")
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = "not a git repository"
+		}
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	top := strings.TrimSpace(string(out))
