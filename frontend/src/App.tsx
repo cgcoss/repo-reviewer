@@ -24,8 +24,12 @@ export default function App() {
     const [bottomPanelHeight, setBottomPanelHeight] = useState(280);
     const [bottomPanelTab, setBottomPanelTab] = useState<"log">("log");
     const isResizingRef = useRef(false);
+    const isHorizontalResizingRef = useRef(false);
     const startYRef = useRef(0);
     const startHeightRef = useRef(0);
+    const startXRef = useRef(0);
+    const startWidthRef = useRef(0);
+    const [sidebarWidth, setSidebarWidth] = useState(320);
 
     const [logCommits, setLogCommits] = useState<Commit[]>([]);
     const [logRefs, setLogRefs] = useState<Ref[]>([]);
@@ -215,13 +219,20 @@ export default function App() {
     // Resize handlers
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
-            if (!isResizingRef.current) return;
-            const delta = startYRef.current - e.clientY;
-            const newHeight = Math.max(120, Math.min(600, startHeightRef.current + delta));
-            setBottomPanelHeight(newHeight);
+            if (isResizingRef.current) {
+                const delta = startYRef.current - e.clientY;
+                const newHeight = Math.max(120, Math.min(600, startHeightRef.current + delta));
+                setBottomPanelHeight(newHeight);
+            }
+            if (isHorizontalResizingRef.current) {
+                const delta = e.clientX - startXRef.current;
+                const newWidth = Math.max(180, Math.min(600, startWidthRef.current + delta));
+                setSidebarWidth(newWidth);
+            }
         };
         const handleMouseUp = () => {
             isResizingRef.current = false;
+            isHorizontalResizingRef.current = false;
         };
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
@@ -236,6 +247,12 @@ export default function App() {
         startYRef.current = e.clientY;
         startHeightRef.current = bottomPanelHeight;
     }, [bottomPanelHeight]);
+
+    const startHorizontalResize = useCallback((e: React.MouseEvent) => {
+        isHorizontalResizingRef.current = true;
+        startXRef.current = e.clientX;
+        startWidthRef.current = sidebarWidth;
+    }, [sidebarWidth]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -287,7 +304,7 @@ export default function App() {
         <div className="flex flex-col h-screen bg-darcula-bg text-darcula-text">
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
-                <div className="w-80 flex flex-col border-r border-darcula-border bg-darcula-bg shrink-0">
+                <div className="flex flex-col border-r border-darcula-border bg-darcula-bg shrink-0" style={{ width: sidebarWidth }}>
                     <RepoPathInput
                         path={repoPath}
                         onPathChange={setRepoPath}
@@ -315,6 +332,13 @@ export default function App() {
                         onSelect={selectFile}
                     />
                 </div>
+
+                {/* Horizontal resize handle */}
+                <div
+                    onMouseDown={startHorizontalResize}
+                    className="w-1.5 cursor-ew-resize hover:bg-darcula-info bg-transparent shrink-0"
+                    title="Resize sidebar"
+                />
 
                 {/* Main diff viewer */}
                 <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
