@@ -25,7 +25,7 @@ export default function CommitGraph({ layout, rowHeight }: CommitGraphProps) {
             {commits.map((commit, i) => {
                 const cy = i * rowHeight + rowHeight / 2;
                 const cx = laneX(commit.lane);
-                const color = LANE_COLORS[commit.lane % LANE_COLORS.length];
+                const color = LANE_COLORS[commit.branchColor % LANE_COLORS.length];
                 const yNext = (i + 1) * rowHeight + rowHeight / 2;
                 const h = rowHeight * 0.4;
 
@@ -39,7 +39,7 @@ export default function CommitGraph({ layout, rowHeight }: CommitGraphProps) {
                                 const x2 = laneX(outLane);
                                 const y2 = cy;
                                 const path = `M ${x1},${y1} C ${x1},${y1 - h} ${x2},${y2 + h} ${x2},${y2}`;
-                                const lineColor = LANE_COLORS[inLane % LANE_COLORS.length];
+                                const lineColor = LANE_COLORS[commit.lineColors[inIdx] % LANE_COLORS.length];
                                 return (
                                     <path
                                         key={`${commit.hash}-line-${inIdx}-${outIdx}`}
