@@ -13,6 +13,7 @@ export const LANE_COLORS = [
 
 export interface CommitLayout {
     hash: string;
+    parentHashes: string[];
     lane: number;
     lanesIn: number[];
     lanesOut: number[];
@@ -29,56 +30,51 @@ export interface GraphLayout {
 }
 
 export function computeGraphLayout(commits: Commit[], refs: Ref[]): GraphLayout {
-    const activeLanes = new Map<string, number>();
+    // Phase 1: assign lanes (newest-first, same order as git log output).
+    // The first parent of each commit continues in the commit's lane,
+    // keeping the main history straight. Merge parents get new lanes
+    // only if they haven't been assigned one by another child.
+    const commitLane = new Map<string, number>();
     let nextLane = 0;
-    const layouts: CommitLayout[] = [];
 
-    // Process oldest -> newest (reverse of git log output)
-    for (let idx = commits.length - 1; idx >= 0; idx--) {
-        const commit = commits[idx];
-
-        let lane: number;
-        if (activeLanes.has(commit.hash)) {
-            lane = activeLanes.get(commit.hash)!;
-        } else {
-            lane = nextLane;
-            nextLane++;
+    for (const commit of commits) {
+        if (!commitLane.has(commit.hash)) {
+            commitLane.set(commit.hash, nextLane++);
         }
+        const lane = commitLane.get(commit.hash)!;
 
-        const lanesIn: number[] = [];
-        for (const parentHash of commit.parentHashes) {
-            if (activeLanes.has(parentHash)) {
-                lanesIn.push(activeLanes.get(parentHash)!);
+        for (let pIdx = 0; pIdx < commit.parentHashes.length; pIdx++) {
+            const parentHash = commit.parentHashes[pIdx];
+            if (pIdx === 0) {
+                // First parent always continues this lane (overwrite any
+                // previous assignment so the first-parent chain is straight).
+                commitLane.set(parentHash, lane);
             } else {
-                const used = new Set(activeLanes.values());
-                let freeLane = 0;
-                while (used.has(freeLane)) {
-                    freeLane++;
+                // Merge parents get new lanes if not already assigned.
+                if (!commitLane.has(parentHash)) {
+                    commitLane.set(parentHash, nextLane++);
                 }
-                if (freeLane >= nextLane) {
-                    nextLane = freeLane + 1;
-                }
-                activeLanes.set(parentHash, freeLane);
-                lanesIn.push(freeLane);
             }
         }
+    }
 
-        const lanesOut = [lane];
-
+    // Phase 2: build layouts (newest-first, aligned with commits array).
+    const layouts: CommitLayout[] = [];
+    for (const commit of commits) {
+        const lane = commitLane.get(commit.hash)!;
+        const lanesIn = commit.parentHashes.map((p) => commitLane.get(p)!);
         layouts.push({
             hash: commit.hash,
+            parentHashes: commit.parentHashes,
             lane,
             lanesIn,
-            lanesOut,
+            lanesOut: [lane],
             isMerge: commit.parentHashes.length > 1,
             isFork: false,
             branchColor: 0,
             lineColors: [],
         });
     }
-
-    // Reverse back to newest-first order
-    layouts.reverse();
 
     // Build children map (newest-first order for each parent)
     const childrenMap = new Map<string, string[]>();
